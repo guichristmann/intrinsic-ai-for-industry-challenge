@@ -1,9 +1,11 @@
 {
-    "typeCheckingMode": "basic",
-    "include": [
-        "aic_utils/lerobot_robot_aic",
-    ],
-    "exclude": [
-        "**/build"
-    ]
+  "typeCheckingMode": "basic",
+  "venvPath": ".pixi/envs",
+  "venv": "default",
+  "include": [
+    "aic_utils/lerobot_robot_aic"
+  ],
+  "exclude": [
+    "**/build"
+  ]
 }

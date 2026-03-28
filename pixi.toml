@@ -33,6 +33,7 @@ ros-kilted-sensor-msgs = "*"                                                    
 ros-kilted-std-msgs = "*"                                                              # lerobot_robot_ros
 ros-kilted-std-srvs = "*"
 ros-kilted-tf2-ros-py = "*"
+ros-kilted-policy-playground = { path = "policy_playground" }
 setuptools = ">=71.0.0,<81.0.0"                                                        # required by lerobot==0.4.3
 
 [pypi-dependencies]
