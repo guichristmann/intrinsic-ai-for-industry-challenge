@@ -54,6 +54,18 @@ def on_aic_engine_exit(event, context):
     )
 
 
+def on_data_collection_engine_exit(event, context):
+    if event.returncode != 0:
+        raise RuntimeError(
+            f"data_collection_engine exited with code {event.returncode}"
+        )
+    return EmitEvent(
+        event=Shutdown(
+            reason=f"data_collection_engine exited cleanly with code {event.returncode})"
+        )
+    )
+
+
 def launch_setup(context, *args, **kwargs):
     # UR arguments
     ur_type = LaunchConfiguration("ur_type")
@@ -93,7 +105,11 @@ def launch_setup(context, *args, **kwargs):
     cable_type = LaunchConfiguration("cable_type")
     ground_truth = LaunchConfiguration("ground_truth")
     start_aic_engine = LaunchConfiguration("start_aic_engine")
+    start_data_collection_engine = LaunchConfiguration("start_data_collection_engine")
     shutdown_on_aic_engine_exit = LaunchConfiguration("shutdown_on_aic_engine_exit")
+    shutdown_on_data_collection_engine_exit = LaunchConfiguration(
+        "shutdown_on_data_collection_engine_exit"
+    )
     aic_engine_config_file = LaunchConfiguration("aic_engine_config_file")
     model_discovery_timeout_seconds = LaunchConfiguration(
         "model_discovery_timeout_seconds"
@@ -102,6 +118,7 @@ def launch_setup(context, *args, **kwargs):
         "model_configure_timeout_seconds"
     )
     gz_verbosity_level = LaunchConfiguration("gz_verbosity_level")
+    data_collection_config_file = LaunchConfiguration("data_collection_config_file")
 
     gripper_initial_pos = "0.00655"
     cable_type_str = LaunchConfiguration("cable_type").perform(context)
@@ -255,6 +272,16 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(start_aic_engine),
     )
 
+    data_collection_engine = Node(
+        package="data_collection_engine",
+        executable="data_collection_engine",
+        output="screen",
+        parameters=[
+            {"config_file_path": data_collection_config_file, "use_sim_time": True},
+        ],
+        condition=IfCondition(start_data_collection_engine),
+    )
+
     # Event handler to shutdown launch file when aic_engine exits
     shutdown_on_aic_engine_exit_handler = RegisterEventHandler(
         OnProcessExit(target_action=aic_engine, on_exit=on_aic_engine_exit),
@@ -265,6 +292,23 @@ def launch_setup(context, *args, **kwargs):
                     start_aic_engine,
                     "' == 'true' and '",
                     shutdown_on_aic_engine_exit,
+                    "' == 'true'",
+                ]
+            )
+        ),
+    )
+    # Event handler to shutdown launch file when data_collection_engine exits
+    shutdown_on_data_collection_engine_exit_handler = RegisterEventHandler(
+        OnProcessExit(
+            target_action=data_collection_engine, on_exit=on_data_collection_engine_exit
+        ),
+        condition=IfCondition(
+            PythonExpression(
+                [
+                    "'",
+                    start_data_collection_engine,
+                    "' == 'true' and '",
+                    shutdown_on_data_collection_engine_exit,
                     "' == 'true'",
                 ]
             )
@@ -443,7 +487,9 @@ def launch_setup(context, *args, **kwargs):
         ground_truth_tf_relay,
         ground_truth_static_tf_publisher,
         aic_engine,
+        data_collection_engine,
         shutdown_on_aic_engine_exit_handler,
+        shutdown_on_data_collection_engine_exit_handler,
     ]
 
     return nodes_to_start
@@ -766,6 +812,14 @@ def generate_launch_description():
     )
     declared_arguments.append(
         DeclareLaunchArgument(
+            "shutdown_on_data_collection_engine_exit",
+            default_value="false",
+            description="Whether to shutdown the launch file when data_collection_engine exits. "
+            "Only takes effect when start_data_collection_engine is true.",
+        )
+    )
+    declared_arguments.append(
+        DeclareLaunchArgument(
             "aic_engine_config_file",
             default_value=PathJoinSubstitution(
                 [FindPackageShare("aic_engine"), "config", "sample_config.yaml"]
@@ -778,6 +832,20 @@ def generate_launch_description():
             "model_configure_timeout_seconds",
             default_value="60",
             description="Timeout for model configuration checks.",
+        )
+    )
+
+    declared_arguments.append(
+        DeclareLaunchArgument(
+            "data_collection_config_file",
+            default_value=PathJoinSubstitution(
+                [
+                    FindPackageShare("data_collection_engine"),
+                    "config",
+                    "sample_config.yaml",
+                ]
+            ),
+            description="Absolute path to YAML file with the AIC engine configuration.",
         )
     )
 
