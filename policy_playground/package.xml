@@ -7,6 +7,18 @@
   <maintainer email="guichristmann@todo.todo">guichristmann</maintainer>
   <license>TODO: License declaration</license>
 
+  <depend>aic_control_interfaces</depend>
+  <depend>aic_model</depend>
+  <depend>aic_model_interfaces</depend>
+  <depend>aic_task_interfaces</depend>
+  <depend>geometry_msgs</depend>
+  <depend>python3-transforms3d</depend>
+  <depend>rclpy</depend>
+  <depend>tf2_ros</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>trajectory_msgs</depend>
+
   <test_depend>ament_copyright</test_depend>
   <test_depend>ament_flake8</test_depend>
   <test_depend>ament_mypy</test_depend>

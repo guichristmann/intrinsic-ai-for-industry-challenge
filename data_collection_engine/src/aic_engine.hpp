@@ -26,6 +26,7 @@
 #include <thread>
 #include <unordered_map>
 
+#include "recorder.hpp"
 #include "aic_control_interfaces/msg/joint_motion_update.hpp"
 #include "aic_control_interfaces/msg/motion_update.hpp"
 #include "aic_control_interfaces/msg/trajectory_generation_mode.hpp"
@@ -400,6 +401,8 @@ class Engine {
 
   // Scoring tier 2 instance.
   std::unique_ptr<aic_scoring::ScoringTier2> scoring_tier2_;
+
+  std::unique_ptr<DataRecorder> data_recorder_{nullptr};
 
   // Output directory for scoring.
   std::string scoring_output_dir_;

@@ -26,6 +26,7 @@
 #include <iomanip>
 #include <mutex>
 #include <sstream>
+#include <string>
 #include <unordered_set>
 
 #include "aic_task_interfaces/msg/task.hpp"
@@ -33,6 +34,7 @@
 #include "lifecycle_msgs/msg/state.hpp"
 #include "lifecycle_msgs/srv/get_state.hpp"
 #include "rclcpp/subscription_options.hpp"
+#include "recorder.hpp"
 #include "sensor_msgs/msg/joint_state.hpp"
 
 namespace aic {
@@ -373,16 +375,13 @@ EngineState Engine::start() {
 
 //==============================================================================
 EngineState Engine::initialize() {
-  RCLCPP_INFO(node_->get_logger(),
-              "\033[1;36m╔════════════════════════════════════════╗\033[0m");
-  RCLCPP_INFO(node_->get_logger(),
-              "\033[1;36m║   Initializing AIC Engine...           ║\033[0m");
-  RCLCPP_INFO(node_->get_logger(),
-              "\033[1;36m╚════════════════════════════════════════╝\033[0m");
+  RCLCPP_INFO(node_->get_logger(), "Initializing data collection engine.");
 
   // Initialize the trials.
   const std::filesystem::path config_file_path =
       node_->get_parameter("config_file_path").as_string();
+  RCLCPP_INFO(node_->get_logger(), "Config file path: %s",
+              config_file_path.c_str());
 
   // Try to load config file as YAML
   try {
@@ -407,6 +406,9 @@ EngineState Engine::initialize() {
   }
 
   const auto& trials_config = config_["trials"];
+  std::size_t number_of_trials = trials_config.size();
+  RCLCPP_INFO(node_->get_logger(), "Number of trials: %lu", number_of_trials);
+
   for (auto it = trials_config.begin(); it != trials_config.end(); ++it) {
     const std::string trial_id = it->first.as<std::string>();
     const YAML::Node trial_config = it->second;
@@ -544,6 +546,12 @@ EngineState Engine::initialize() {
   scoring_tier2_->SetGripperFrame(
       node_->get_parameter("gripper_frame_name").as_string());
 
+  if (config_["recording"]) {
+    RCLCPP_INFO(node_->get_logger(), "Creating DataRecorder.");
+    data_recorder_ =
+        std::make_unique<DataRecorder>(node_, config_["recording"]);
+  }
+
   // Create output directory for bag files.
   std::error_code ec;
   std::filesystem::create_directories(scoring_output_dir_, ec);
@@ -576,6 +584,9 @@ EngineState Engine::run() {
   RCLCPP_INFO(node_->get_logger(),
               "\033[1;35m╚════════════════════════════════════════╝\033[0m");
   RCLCPP_INFO(node_->get_logger(), " ");
+
+  // Add some parameter for how many trimes we want to repeat a trial and
+  // collect data from it.
 
   engine_state_ = EngineState::Running;
   Score score;
@@ -813,6 +824,10 @@ TrialScore Engine::handle_trial(Trial& trial) {
     reset_after_trial(trial);
     engine_state_ = EngineState::Error;
     return score;
+  }
+
+  if (data_recorder_) {
+    data_recorder_->StartRecording(trial.id);
   }
 
   if (trial.state == TrialState::ScoringReady) {
@@ -1634,6 +1649,9 @@ bool Engine::validate_model_shutdown() const {
 //==============================================================================
 void Engine::reset_after_trial(const Trial& trial) {
   RCLCPP_INFO(node_->get_logger(), "Resetting after trial completion...");
+  if (data_recorder_) {
+    data_recorder_->StopRecording();
+  }
 
   // Deactivate the model node to transition back to configured state
   if (this->model_discovered_) {

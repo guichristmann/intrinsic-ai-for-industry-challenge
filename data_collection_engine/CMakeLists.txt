@@ -27,7 +27,8 @@ find_package(yaml-cpp REQUIRED)
 
 add_executable(data_collection_engine
   src/aic_engine.cpp
-	src/main.cpp
+  src/recorder.cpp
+  src/main.cpp
 )
 target_link_libraries(data_collection_engine
   aic_scoring::aic_scoring
